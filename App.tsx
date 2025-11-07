@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useState,
 } from "react";
+// Make sure your Question type includes a category
 import type { Question } from "./types";
 import QuestionCard from "./components/QuestionCard";
 
@@ -15,6 +16,7 @@ import questionsFrenchData from "./questions/questions_fr.json";
 // --- Types and Helper Functions ---
 
 type Language = "ar" | "en" | "fr";
+type Category = "All" | "Signs" | "Law" | "Safety";
 
 interface QuizState {
   allQuestions: Question[];
@@ -39,10 +41,9 @@ const questionsByLang: Record<Language, Question[]> = {
   fr: questionsFrenchData.questions,
 };
 
-// --- Reducer ---
+const categories: Category[] = ["All", "Signs", "Law", "Safety"];
 
 const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
-  // ... (reducer logic remains the same)
   switch (action.type) {
     case "ANSWER_QUESTION":
       return {
@@ -88,22 +89,16 @@ const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
 
 const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>("ar");
+  const [category, setCategory] = useState<Category>("All"); // State for category
 
-  const createInitialState = (lang: Language): QuizState => {
-    const initialQuestions = questionsByLang[lang];
-    return {
-      allQuestions: initialQuestions,
-      unansweredIds: shuffleArray(initialQuestions.map((q) => q.id)),
-      correctAnswersCount: 0,
-      selectedAnswer: null,
-      isAnswered: false,
-    };
-  };
-
-  const [state, dispatch] = useReducer(
-    quizReducer,
-    createInitialState(language)
-  );
+  // Initial state creator is no longer needed here, as the effect handles it
+  const [state, dispatch] = useReducer(quizReducer, {
+    allQuestions: [],
+    unansweredIds: [],
+    correctAnswersCount: 0,
+    selectedAnswer: null,
+    isAnswered: false,
+  });
 
   const {
     allQuestions,
@@ -113,32 +108,33 @@ const App: React.FC = () => {
     isAnswered,
   } = state;
 
-  // Effect to reset the quiz when the language changes
+  // Effect to reset the quiz when language OR category changes
   useEffect(() => {
+    const questionsForLang = questionsByLang[language];
+    const filteredQuestions =
+      category === "All"
+        ? questionsForLang
+        : questionsForLang.filter((q) => q.category === category);
+
     dispatch({
       type: "RESET_QUIZ",
-      payload: { questions: questionsByLang[language] },
+      payload: { questions: filteredQuestions },
     });
-  }, [language]);
+  }, [language, category]); // Dependency array now includes category
 
-  // *** NEW: Effect to update the HTML tag attributes ***
   useEffect(() => {
     const html = document.documentElement;
-    const isRtl = language === "ar";
-
     html.lang = language;
-    html.dir = isRtl ? "rtl" : "ltr";
-  }, [language]); // This effect runs whenever the language state changes
+    html.dir = language === "ar" ? "rtl" : "ltr";
+  }, [language]);
 
-  // Derived State (calculations based on state)
   const currentQuestionId = useMemo(() => unansweredIds[0], [unansweredIds]);
-  // ... (rest of the component is the same)
   const currentQuestion = useMemo(
     () => allQuestions.find((q) => q.id === currentQuestionId) || null,
     [allQuestions, currentQuestionId]
   );
   const totalQuestions = allQuestions.length;
-  const questionNumber = totalQuestions - unansweredIds.length + 1;
+  const questionNumber = allQuestions.length - unansweredIds.length + 1;
 
   const handleAnswerSelect = useCallback(
     (answer: string) => {
@@ -159,10 +155,15 @@ const App: React.FC = () => {
   }, []);
 
   const renderContent = () => {
-    if (!currentQuestion) {
+    if (allQuestions.length === 0) {
       return (
-        <p className="text-center text-slate-500">No questions available.</p>
+        <p className="text-center text-slate-500">
+          No questions found for this category.
+        </p>
       );
+    }
+    if (!currentQuestion) {
+      return <p className="text-center text-slate-500">Quiz complete!</p>;
     }
     return (
       <QuestionCard
@@ -195,17 +196,37 @@ const App: React.FC = () => {
     </div>
   );
 
+  const CategoryFilter = () => (
+    <div className="flex justify-center flex-wrap gap-2 mb-6">
+      {categories.map((cat) => (
+        <button
+          key={cat}
+          onClick={() => setCategory(cat)}
+          className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+            category === cat
+              ? "bg-sky-500 text-white"
+              : "bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+          }`}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 sm:p-10 transition-shadow">
-        <header className="text-center mb-8">
+        <header className="text-center mb-4">
           <h1 className="text-2xl sm:text-4xl font-bold text-slate-800 dark:text-white">
             Driving Test
           </h1>
         </header>
         <LanguageSwitcher />
+        <CategoryFilter />
         <main>{renderContent()}</main>
       </div>
+
       {isAnswered && (
         <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 p-4 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-10">
           <div className="max-w-2xl mx-auto">
@@ -218,8 +239,8 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      {isAnswered && <div className="h-24"></div>}
-      <footer className="absolute bottom-0 left-0 right-0 text-center py-4 z-0">
+
+      <footer className="text-center py-4">
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Made with 🩵 by{" "}
           <a
@@ -230,6 +251,8 @@ const App: React.FC = () => {
           </a>
         </p>
       </footer>
+
+      {isAnswered && <div className="h-24"></div>}
     </div>
   );
 };
