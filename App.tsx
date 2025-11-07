@@ -207,7 +207,7 @@ const App: React.FC = () => {
         <main>{renderContent()}</main>
       </div>
       {isAnswered && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 p-4 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 p-4 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-10">
           <div className="max-w-2xl mx-auto">
             <button
               onClick={handleNextQuestion}
@@ -219,6 +219,17 @@ const App: React.FC = () => {
         </div>
       )}
       {isAnswered && <div className="h-24"></div>}
+      <footer className="absolute bottom-0 left-0 right-0 text-center py-4 z-0">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Made with 🩵 by{" "}
+          <a
+            href="https://github.com/Murf-y/"
+            className="font-semibold underline"
+          >
+            Murf-y
+          </a>
+        </p>
+      </footer>
     </div>
   );
 };
